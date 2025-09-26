@@ -7,17 +7,6 @@ import math
 
 ### PART 1: SEARCHING UNSORTED LISTS
 
-# search an unordered list L for a key x using iterate
-def isearch(L, x):
-    ###TODO
-    ###
-
-def test_isearch():
-    assert isearch([1, 3, 5, 4, 2, 9, 7], 2) == (2 in [1, 3, 5, 4, 2, 9, 7])
-    assert isearch([1, 3, 5, 2, 9, 7], 7) == (7 in [1, 3, 5, 2, 9, 7])
-    assert isearch([1, 3, 5, 2, 9, 7], 99) == (99 in [1, 3, 5, 2, 9, 7])
-    assert isearch([], 2) == (2 in [1, 3, 5])
-
 
 def iterate(f, x, a):
     # done. do not change me.
@@ -26,10 +15,26 @@ def iterate(f, x, a):
     else:
         return iterate(f, f(x, a[0]), a[1:])
 
+# search an unordered list L for a key x using iterate
+def isearch(L, x):
+    def search_helper(found, current_elem):
+        return found or (current_elem == x)
+    return iterate(search_helper, False, L)
+
+def test_isearch():
+    assert isearch([1, 3, 5, 4, 2, 9, 7], 2) == (2 in [1, 3, 5, 4, 2, 9, 7])
+    assert isearch([1, 3, 5, 2, 9, 7], 7) == (7 in [1, 3, 5, 2, 9, 7])
+    assert isearch([1, 3, 5, 2, 9, 7], 99) == (99 in [1, 3, 5, 2, 9, 7])
+    assert isearch([], 2) == (2 in [1, 3, 5])
+    
+
 # search an unordered list L for a key x using reduce
 def rsearch(L, x):
-    ###TODO
-    ###
+    def or_func(a, b):
+        return a or b
+    # Map each element to whether it equals x, then reduce with OR
+    mapped_list = list(map(lambda elem: elem == x, L))
+    return reduce(or_func, False, mapped_list)
 
 def test_rsearch():
     assert rsearch([1, 3, 5, 4, 2, 9, 7], 2) == (2 in [1, 3, 5, 4, 2, 9, 7])
@@ -63,6 +68,59 @@ def ureduce(f, id_, a):
 
 
 
+    
+### PART 2: DATA DEDUPLICATION
+
+def dedup(A):
+    """
+    Remove duplicates from list A, preserving order of first appearance.
+    
+    Params:
+      A...list of elements (possibly with duplicates)
+    Returns:
+      List of distinct elements in order of first appearance
+    """
+    seen = set()
+    result = []
+    for elem in A:
+        if elem not in seen:
+            seen.add(elem)
+            result.append(elem)
+    return result
+
+def multi_dedup(lists):
+    """
+    Remove duplicates across multiple lists.
+    
+    Params:
+      lists...list of lists, each containing elements
+    Returns:
+      List of distinct elements across all input lists
+    """
+    # Concatenate all lists
+    combined = []
+    for lst in lists:
+        combined.extend(lst)
+    
+    # Apply single deduplication
+    return dedup(combined)
+
+def test_dedup():
+    assert dedup([1, 2, 3, 2, 1, 4]) == [1, 2, 3, 4]
+    assert dedup([]) == []
+    assert dedup([1, 1, 1]) == [1]
+    assert dedup([1, 2, 3]) == [1, 2, 3]
+
+def test_multi_dedup():
+    lists = [[1, 2, 3], [3, 4, 5], [5, 6, 1]]
+    result = multi_dedup(lists)
+    expected = [1, 2, 3, 4, 5, 6]
+    assert result == expected
+    
+    assert multi_dedup([[], [1, 2], [2, 3]]) == [1, 2, 3]
+    assert multi_dedup([]) == []
+
+
 ### PART 3: PARENTHESES MATCHING
 
 #### Iterative solution
@@ -82,9 +140,8 @@ def parens_match_iterative(mylist):
     >>>parens_match_iterative(['('])
     False
     """
-    ### TODO
-    return iterate(parens_update, 0, mylist) == 0
-    ###
+    result = iterate(parens_update, 0, mylist)
+    return result == 0
 
 
 def parens_update(current_output, next_input):
@@ -99,8 +156,16 @@ def parens_update(current_output, next_input):
     Returns:
       the updated value of `current_output`
     """
-    ###TODO
-    ###
+    # If we already have an invalid state, keep it invalid
+    if current_output < 0:
+        return current_output
+    
+    if next_input == '(':
+        return current_output + 1
+    elif next_input == ')':
+        return current_output - 1
+    else:
+        return current_output
 
 
 def test_parens_match_iterative():
@@ -133,8 +198,19 @@ def parens_match_scan(mylist):
     False
     
     """
-    ###TODO
-    ###
+    if len(mylist) == 0:
+        return True
+    
+    # Map each character to its corresponding value
+    mapped_list = list(map(paren_map, mylist))
+    
+    # Scan with addition to get running totals
+    scan_result, final_sum = scan(lambda x, y: x + y, 0, mapped_list)
+    
+    # Check two conditions:
+    # 1. Final sum should be 0 (equal number of ( and ))
+    # 2. All intermediate sums should be >= 0 (never more ) than ()
+    return final_sum == 0 and reduce(min_f, float('inf'), scan_result) >= 0
 
 def scan(f, id_, a):
     """
@@ -211,15 +287,35 @@ def parens_match_dc_helper(mylist):
       L is the number of unmatched left parentheses. This output is used by 
       parens_match_dc to return the final True or False value
     """
-    ###TODO
     # base cases
+    if len(mylist) == 0:
+        return (0, 0)
+    elif len(mylist) == 1:
+        if mylist[0] == '(':
+            return (0, 1)  # one unmatched left paren
+        elif mylist[0] == ')':
+            return (1, 0)  # one unmatched right paren
+        else:
+            return (0, 0)  # not a parenthesis
     
     # recursive case
     # - first solve subproblems
+    mid = len(mylist) // 2
+    left_result = parens_match_dc_helper(mylist[:mid])
+    right_result = parens_match_dc_helper(mylist[mid:])
     
     # - then compute the solution (R,L) using these solutions, in constant time.
+    left_R, left_L = left_result
+    right_R, right_L = right_result
     
-    ###
+    # Match as many left parens from left half with right parens from right half
+    matched = min(left_L, right_R)
+    
+    # Remaining unmatched parens
+    final_R = left_R + (right_R - matched)
+    final_L = (left_L - matched) + right_L
+    
+    return (final_R, final_L)
     
 
 def test_parens_match_dc():
